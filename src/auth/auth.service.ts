@@ -3,10 +3,17 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { hash, verify } from 'argon2';
 import { AuthDto } from './dto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { config } from 'process';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private config: ConfigService,
+    private prisma: PrismaService,
+    private jwt: JwtService,
+  ) {}
 
   async login(dto: AuthDto) {
     const user = await this.prisma.user.findUnique({
@@ -15,15 +22,21 @@ export class AuthService {
       },
     });
 
-    if (!user) throw new ForbiddenException('invalid credentials');
+    if (!user)
+      throw new ForbiddenException(
+        'your credentials does not match our records',
+      );
 
     const matchedPW = await verify(user.password, dto.password);
 
-    if (!matchedPW) throw new ForbiddenException('invalid credentials');
+    if (!matchedPW)
+      throw new ForbiddenException(
+        'your credentials does not match our records',
+      );
 
     delete user.password;
 
-    return user;
+    return await this.signToken(user.id, user.email);
   }
 
   async signup(dto: AuthDto) {
@@ -40,14 +53,29 @@ export class AuthService {
 
       delete user.password;
 
-      return user;
+      return await this.signToken(user.id, user.email);
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
+        // error code for duplicate field
         if (error.code === 'P2002') {
-          throw new ForbiddenException('email taken');
+          throw new ForbiddenException('email already taken');
         }
       }
       throw error;
     }
+  }
+
+  async signToken(
+    id: number,
+    email: string,
+  ): Promise<{ access_token: string }> {
+    const access_token = await this.jwt.signAsync(
+      { id, email },
+      { expiresIn: '15m', secret: this.config.get('JWT_SECRET') },
+    );
+
+    return {
+      access_token,
+    };
   }
 }
