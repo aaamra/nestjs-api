@@ -35,7 +35,7 @@ export class AuthService {
 
     delete user.password;
 
-    return await this.signToken(user.id, user.email);
+    return await this.signToken(user.id, user.name, user.email);
   }
 
   async signup(dto: AuthDto) {
@@ -52,7 +52,7 @@ export class AuthService {
 
       delete user.password;
 
-      return await this.signToken(user.id, user.email);
+      return await this.signToken(user.id, user.name, user.email);
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
         // error code for duplicate field
@@ -66,10 +66,11 @@ export class AuthService {
 
   async signToken(
     id: number,
+    name: string,
     email: string,
   ): Promise<{ access_token: string }> {
     const access_token = await this.jwt.signAsync(
-      { id, email },
+      { id, name, email },
       { expiresIn: '15m', secret: this.config.get('JWT_SECRET') },
     );
 
