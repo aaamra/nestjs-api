@@ -10,5 +10,15 @@ services:
       POSTGRES_DATABASE: nest
     networks:
       - abdallah
+  test-db:
+    image: postgres:14
+    ports:
+      - 5435:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DATABASE: nest_test
+    networks:
+      - abdallah
 networks:
   abdallah:
